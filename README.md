@@ -287,16 +287,3 @@ flood_fixed/
 └── api/
     └── schemas.py                 # Pydantic request/response models
 ```
-
----
-
-## Built By
-
-**techBlazers** — IIIT Bangalore · India Innovates 2026 (Municipal Corporation of Delhi)
-
-Sai Venkat · Siddhartha Reddy · Sai Harsha · Mithun Kumar · Sohan Reddy
-
----
-
-*HydraGIS v6.0 · March 2026 · NDMA Urban Flood Risk Index Methodology 2010*
-*Built for BBMP Pre-Monsoon 2026 Readiness*
