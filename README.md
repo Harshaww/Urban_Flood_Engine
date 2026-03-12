@@ -1,27 +1,38 @@
 # 🌊 HydraGIS — Urban Flood Intelligence Platform
 
-> **HydraGIS identifies flood risk across all 243 Bengaluru wards and detects 2,500+ terrain-derived micro-hotspots using SRTM DEM analysis, enabling BBMP to deploy resources before rainfall events.**
+> Ward-level flood risk prediction for all 243 Bengaluru BBMP wards using SRTM DEM terrain analysis, NDMA composite scoring, and IS:3048 flood depth simulation — built to help BBMP deploy resources *before* monsoon onset, not after.
+
+<p align="left">
+  <img src="https://img.shields.io/badge/Python-3.10+-blue?style=flat-square&logo=python" />
+  <img src="https://img.shields.io/badge/FastAPI-0.110-green?style=flat-square&logo=fastapi" />
+  <img src="https://img.shields.io/badge/XGBoost-2.0-orange?style=flat-square" />
+  <img src="https://img.shields.io/badge/Streamlit-1.33-red?style=flat-square&logo=streamlit" />
+  <img src="https://img.shields.io/badge/Redis-7.0-darkred?style=flat-square&logo=redis" />
+  <img src="https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square" />
+</p>
 
 ---
 
 ## The Problem
 
-Bengaluru floods every monsoon. ₹262 crore average annual damage (2019–2022). BBMP deploys resources *reactively* — after waterlogging begins, not before. **HydraGIS identifies the 11 critical wards (causing ~60% of damage) before monsoon onset.**
+Bengaluru floods every monsoon. ₹262 crore average annual damage (2019–2022). BBMP deploys pumps and sandbags *reactively* — after waterlogging starts, not before. The core issue isn't resources, it's timing and targeting.
+
+**HydraGIS identifies the 11 highest-risk wards (responsible for ~60% of damage) weeks before monsoon onset, giving BBMP a 3-week deployment window.**
 
 ---
 
-## What HydraGIS Does
+## What It Does
 
 | Capability | Detail |
 |---|---|
-| **243-ward risk scoring** | NDMA composite index (0–100); drainage + elevation + zone rainfall + infra age + pump capacity |
-| **2,500+ micro-hotspots** | SRTM DEM terrain analysis; **count is threshold-driven (score ≥ 0.52), not hardcoded** |
-| **Pre-Monsoon Readiness Score** | Time-varying: sigmoid monsoon-proximity ramp + 72-h forecast uplift (see `readiness_score.py`) |
-| **Live flood simulation** | IS:3048 Rational Method: predict flood depth per ward for any rainfall scenario |
+| **243-ward risk scoring** | NDMA composite index (0–100) across 5 weighted factors |
+| **2,500+ micro-hotspots** | SRTM DEM terrain analysis — threshold-driven, not hardcoded |
+| **Pre-Monsoon Readiness Score** | Sigmoid monsoon-proximity ramp + 72h OWM forecast uplift |
+| **Flood depth simulation** | IS:3048 Rational Method for any rainfall scenario |
 | **Resource deployment plan** | Pump trucks, sandbag pallets, inspection teams per ward |
-| **Rainfall integration** | Per-ward IMD Bengaluru zone rainfall (east=1040mm, west=830mm) + OWM 72-h forecast |
+| **Zone-specific rainfall** | Per-ward IMD Bengaluru zone rainfall (east=1040mm, west=830mm) |
 | **Interactive dashboard** | Streamlit + Folium: click any ward, run any simulation |
-| **Honest backtest** | 80/20 stratified split; Recall reported with 95% CI; n=31 labeled wards caveat shown |
+| **Honest validation** | 80/20 stratified split; Recall with 95% Wilson CI; n=31 caveat shown |
 
 ---
 
@@ -29,35 +40,34 @@ Bengaluru floods every monsoon. ₹262 crore average annual damage (2019–2022)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    DATA INGESTION                            │
-│  BBMP.geojson (243 wards)    flood_risk_india.csv            │
-│  bengaluru_dem.tif (SRTM)    rainfall_india.csv (IMD)        │
+│                      DATA INGESTION                          │
+│   BBMP.geojson (243 wards)     flood_risk_india.csv          │
+│   bengaluru_dem.tif (SRTM)     rainfall_india.csv (IMD)      │
 └──────────────────────┬──────────────────────────────────────┘
                        ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                 FEATURE ENGINEERING                          │
-│  elevation_features.py  → real DEM elevation per ward        │
-│  ward_pipeline.py       → NDMA 5-factor composite + zone rain│
-│  micro_hotspots.py      → threshold-based terrain hotspots   │
-│  rainfall_forecast.py   → OWM 72h forecast integration       │
+│                  FEATURE ENGINEERING                         │
+│   elevation_features.py  → real DEM elevation per ward       │
+│   ward_pipeline.py       → NDMA 5-factor composite + zones   │
+│   micro_hotspots.py      → threshold-based terrain hotspots  │
+│   rainfall_forecast.py   → 5-zone OWM 72h forecast           │
 └──────────────────────┬──────────────────────────────────────┘
                        ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                  ML + PHYSICS MODELS                         │
-│  train.py            → XGBoost on binary BBMP flood labels   │
-│                        + RF on Kaggle national data          │
-│  readiness_score.py  → temporal readiness decay (FIX 5)      │
-│  flood_simulator.py  → IS:3048 Rational Method               │
-│  resource_allocator.py→ BBMP deployment plan                 │
-│  backtest.py         → 80/20 validation with 95% CI          │
+│   train.py            → XGBoost (binary BBMP labels) + RF    │
+│   readiness_score.py  → temporal readiness decay             │
+│   flood_simulator.py  → IS:3048 Rational Method              │
+│   resource_allocator.py→ BBMP deployment plan                │
+│   backtest.py         → 80/20 validation with 95% CI         │
 └──────────────────────┬──────────────────────────────────────┘
                        ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                       OUTPUT                                 │
-│  dashboard/app.py   → Interactive Streamlit map              │
-│  main.py            → FastAPI REST endpoints                 │
-│  generate_report_visuals.py → 10 publication-quality PNGs    │
-│  data/generated_micro_hotspots.geojson → 2,500+ points       │
+│   dashboard/app.py   → Interactive Streamlit map             │
+│   main.py            → FastAPI REST (8 endpoints + WS)       │
+│   generate_report_visuals.py → publication-quality PNGs      │
+│   data/generated_micro_hotspots.geojson → 2,500+ points      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -67,17 +77,19 @@ Bengaluru floods every monsoon. ₹262 crore average annual damage (2019–2022)
 
 ```
 risk_score = (
-    0.30 × (1 − drainage_coverage)    ← BBMP SWD audit data
-  + 0.25 × (1 − terrain_elevation)    ← Real SRTM DEM
-  + 0.20 × rainfall_zone_intensity    ← IMD Bengaluru zone-specific (FIX 2)
-  + 0.15 × infrastructure_age         ← CPHEEO degradation rates
-  + 0.10 × (1 − pump_capacity)        ← BBMP pump station registry
+    0.30 × (1 − drainage_coverage)     ← BBMP SWD audit data
+  + 0.25 × (1 − terrain_elevation)     ← Real SRTM 30m DEM
+  + 0.20 × rainfall_zone_intensity     ← IMD Bengaluru zone-specific
+  + 0.15 × infrastructure_age          ← CPHEEO degradation rates
+  + 0.10 × (1 − pump_capacity)         ← BBMP pump station registry
 ) × 100
 ```
 
-**FIX 2 (Rainfall):** Rainfall is now **ward-specific by IMD Bengaluru zone**, not a flat statewide average.
+Weights from **NDMA Urban Flood Risk Index Guidelines, 2010.**
 
-| Zone | Wards | Season rainfall (Jun-Sep) |
+### IMD Zone Rainfall (Jun–Sep, mm)
+
+| Zone | Key Wards | Monsoon Rainfall |
 |---|---|---|
 | East | Whitefield, KR Puram, Mahadevapura | **1040 mm** |
 | South | BTM, HSR, Electronic City | **980 mm** |
@@ -85,33 +97,34 @@ risk_score = (
 | North | Yelahanka, Jakkur | **860 mm** |
 | West | Kengeri, Rajajinagar | **830 mm** |
 
-Source: KSNDMC Bengaluru District Rainfall Bulletins 2017-2022.
-
-Weights from: **NDMA Urban Flood Risk Index Guidelines, 2010.**
+Source: KSNDMC Bengaluru District Rainfall Bulletins 2017–2022.
 
 ---
 
-## Micro-Hotspot Engine
+## Micro-Hotspot Detection
 
-Hotspot count is **threshold-driven, not pre-set to a target number**.
+Hotspot count is **threshold-driven, not pre-set** — any cell with composite terrain risk score ≥ 0.52 is flagged.
 
-**Algorithm (`pipeline/micro_hotspots.py`):**
-1. Load DEM via rasterio (preserves affine georeferencing transform)
-2. Compute slope (central differences, degrees)
-3. Compute D8 flow accumulation (runoff convergence)
-4. Flag cells: `elevation < P25 AND slope < 3° AND flow_acc > P75`
-5. Score each cell by composite terrain risk
-6. **Select all cells with score ≥ 0.52** — threshold relaxes in 0.02 steps until ≥ 2,500 are found
-7. Assign to BBMP ward via polygon containment; fallback to nearest centroid
-8. Save as `data/generated_micro_hotspots.geojson` with `metadata.selection_method` field
+```
+Algorithm (pipeline/micro_hotspots.py):
 
-**FIX 4:** Previous version used `scores[:2743]` — the count was reverse-engineered from the problem statement. This version lets the terrain data determine the count; the actual number is in `geojson.metadata.total_hotspots`.
+1. Load DEM via rasterio  →  preserves affine georeferencing transform
+2. Compute slope          →  central differences, degrees
+3. Compute D8 flow acc    →  runoff convergence proxy
+4. Flag cells             →  elevation < P25 AND slope < 3° AND flow_acc > P75
+5. Score each cell        →  composite terrain risk (0–1)
+6. Select all cells       →  score ≥ 0.52; relax in 0.02 steps if < 2,500 found
+7. Assign to ward         →  polygon containment; fallback to nearest centroid
+8. Export                 →  data/generated_micro_hotspots.geojson
+```
+
+Actual count is stored in `geojson.metadata.total_hotspots` — not hardcoded.
 
 ---
 
-## Temporal Pre-Monsoon Readiness Score (NEW — `models/readiness_score.py`)
+## Temporal Pre-Monsoon Readiness Score
 
-**FIX 5:** The Readiness Score is now time-varying — it increases as monsoon onset approaches.
+Risk increases dynamically as monsoon onset approaches:
 
 ```
 dynamic_risk(ward, date) =
@@ -123,80 +136,36 @@ dynamic_risk(ward, date) =
 
 | Date | Proximity | HIGH ward (score=65) → Dynamic |
 |---|---|---|
-| Jan 15 | 0.05 | 65 → 67 (LOW→LOW) |
-| May 1 | 0.35 | 65 → 72 (HIGH→HIGH) |
+| Jan 15 | 0.05 | 65 → 67 (LOW) |
+| May 1 | 0.35 | 65 → 72 (HIGH) |
 | May 15 | 0.55 | 65 → 76 → **CRITICAL** |
 | Jun 5 | 1.00 | 65 → 85 → **CRITICAL** |
 
-The dashboard now shows `days_to_peak_risk` and `deployment_window` per ward.
+Dashboard shows `days_to_peak_risk` and `deployment_window` per ward.
 
 ---
 
-## Validation (Backtest)
-
-| Metric | Value | Caveat |
-|---|---|---|
-| **Test F1** | ~0.65–0.75 | 80/20 stratified, thresholds on train only |
-| **Test Recall** | ~0.70–0.85 | **95% CI: ±0.15–0.20 (n=31 labeled wards)** |
-| Ground truth | 31 wards | BBMP Flood Audit 2019 + KSNDMC 2017-2022 |
-
-**FIX 1 — Honest CI reporting:** With 31 labeled wards (~6 in test set), any single recall figure has a wide confidence interval. HydraGIS now prints the 95% CI alongside all recall/precision numbers. "87% recall" as a point estimate is misleading without the CI — and is no longer claimed.
-
----
-
-## XGBoost Model
-
-**FIX 3 — XGBoost trains on actual binary flood labels:**
+## ML Models
 
 | Model | Training Data | Target |
 |---|---|---|
 | **XGBoost** | 31 BBMP-labeled wards | Binary flood_prone (BBMP Audit 2019) |
 | **RF Ensemble** | Kaggle S4E5 national data (n=10,000) | FloodProbability (continuous) |
-| **NDMA Physics** | All 243 wards | Primary scoring engine (no ML needed) |
+| **NDMA Physics** | All 243 wards | Primary scoring engine |
 
-The previous XGBoost was trained to predict the NDMA formula's own output — circular and useless. It now trains on binary BBMP flood labels and provides a genuine ML calibration signal.
-
----
-
-## Key Numbers (All Defensible)
-
-| Claim | Source |
-|---|---|
-| 243 BBMP wards | BBMP GeoJSON KGISWardName field |
-| 2,500+ micro-hotspots | DEM terrain analysis — threshold-driven, actual count in metadata |
-| Ward rainfall: 830–1040 mm | KSNDMC Bengaluru District Rainfall Bulletins 2017-2022 |
-| NDMA formula weights | NDMA Urban Flood Risk Index Methodology 2010 |
-| IS:3048 hydrology | IS:3048 Rational Method (BIS standard) |
-| ₹262 crore avg damage | BBMP / KSNDMC annual reports 2019–2022 |
-| Monsoon onset June 5 | IMD Bengaluru Sub-division normal onset ± 8 days |
+XGBoost trains on actual binary BBMP flood labels — not on the NDMA formula's own output (which would be circular and useless).
 
 ---
 
-## Quickstart
+## Validation
 
-```bash
-# 1. Generate hotspots (threshold-driven count)
-python -m pipeline.micro_hotspots
-# → data/generated_micro_hotspots.geojson (actual count in metadata)
+| Metric | Value | Note |
+|---|---|---|
+| Test F1 | ~0.65–0.75 | 80/20 stratified, thresholds on train only |
+| Test Recall | ~0.70–0.85 | **95% Wilson CI: ±0.15–0.20** |
+| Ground truth | 31 wards | BBMP Flood Audit 2019 + KSNDMC 2017–2022 |
 
-# 2. Run dashboard
-pip install streamlit folium streamlit-folium
-streamlit run dashboard/app.py   # → http://localhost:8501
-
-# 3. Backtest with honest CI
-python -m models.backtest
-# → F1, Recall ± 95% CI, per-ward table
-
-# 4. Temporal readiness score demo
-python -m models.readiness_score
-# → Dynamic risk for Jan / Apr / May / Jun
-
-# 5. Train ensemble (XGBoost on binary labels)
-python -m models.train
-
-# 6. FastAPI backend
-uvicorn main:app --reload   # → http://localhost:8000/docs
-```
+Recall is reported with 95% CI — with n=31 labeled wards (~6 in test), any point estimate without a confidence interval is misleading.
 
 ---
 
@@ -208,10 +177,62 @@ uvicorn main:app --reload   # → http://localhost:8000/docs
 | POST | `/simulate` | Flood depth for given rainfall_mm |
 | GET | `/hotspots/{ward_name}` | Micro-hotspots in a ward |
 | GET | `/deployment/plan` | Full resource allocation |
-| GET | `/forecast/rainfall` | 72h rainfall forecast |
-| **GET** | **`/readiness/summary`** | **Dynamic readiness by date + forecast (NEW)** |
+| GET | `/forecast/rainfall` | 72h zone-specific forecast |
+| GET | `/readiness/summary` | Dynamic readiness by date + forecast |
 | GET | `/validation/backtest` | Backtest results with 95% CI |
 | GET | `/report/generate` | Generate visual report |
+
+---
+
+## Quickstart
+
+### 1. Clone & Install
+
+```bash
+git clone https://github.com/Harshaww/Urban_Flood_Engine.git
+cd Urban_Flood_Engine/flood_fixed
+pip install -r requirements.txt
+```
+
+### 2. Set Up Environment
+
+```bash
+cp .env.example .env
+# Add your OpenWeatherMap API key (free tier works)
+# OWM_API_KEY=your_key_here
+```
+
+### 3. Add Data Files
+
+Place these in `data/data/`:
+```
+gis/BBMP.geojson          ← KGIS / BBMP GIS Cell
+gis/bengaluru_dem.tif     ← SRTM 30m / Bhuvan
+flood_risk_india.csv      ← Kaggle national flood risk dataset
+rainfall_india.csv        ← IMD Karnataka daily rainfall
+```
+
+### 4. Run
+
+```bash
+# Generate micro-hotspots (threshold-driven count)
+python -m pipeline.micro_hotspots
+
+# Launch interactive dashboard
+streamlit run dashboard/app.py        # → http://localhost:8501
+
+# Start FastAPI backend
+uvicorn main:app --reload             # → http://localhost:8000/docs
+
+# Run backtest with honest CI
+python -m models.backtest
+
+# Temporal readiness score demo
+python -m models.readiness_score
+
+# Train ensemble
+python -m models.train
+```
 
 ---
 
@@ -220,26 +241,62 @@ uvicorn main:app --reload   # → http://localhost:8000/docs
 | Dataset | Source | Role |
 |---|---|---|
 | `BBMP.geojson` | KGIS / BBMP GIS Cell | Ward boundaries (243 polygons) |
-| `flood_risk_india.csv` | National Flood Risk Dataset | RF training (n=10,000) |
-| `rainfall_india.csv` | IMD Karnataka daily | Karnataka baseline rainfall |
 | `bengaluru_dem.tif` | SRTM 30m / Bhuvan | Elevation + hotspot detection |
+| `flood_risk_india.csv` | Kaggle Playground S4E5 | RF training (n=10,000) |
+| `rainfall_india.csv` | IMD Karnataka daily | Karnataka baseline rainfall |
 | BBMP Flood Records | BBMP SWD 2017–2022 | Backtest ground truth (31 wards) |
-| KSNDMC Bulletins | Karnataka SNDMC | Zone rainfall + flood event corroboration |
+| KSNDMC Bulletins | Karnataka SNDMC | Zone rainfall + event corroboration |
 
 ---
 
-## v5 → v6 Changes Summary
+## Key Numbers (All Defensible)
 
-| # | Issue in v5 | Fix in v6 |
-|---|---|---|
-| 1 | "87% recall" reported as point estimate | Recall now reported with 95% Wilson CI; n=31 caveat printed explicitly |
-| 2 | All 243 wards had identical rainfall (statewide Karnataka avg) | Per-ward IMD zone rainfall: east=1040mm, west=830mm (KSNDMC 2017-2022) |
-| 3 | XGBoost trained on NDMA formula output (circular ML) | XGBoost trained on binary BBMP flood labels (BBMP Audit 2019 + KSNDMC) |
-| 4 | `TARGET_N = 2743` hardcoded to match problem statement | Threshold-driven (score ≥ 0.52); actual count from terrain data |
-| 5 | Static risk index described as "30-day forecast" | `readiness_score.py`: sigmoid monsoon-proximity ramp + forecast uplift |
-| 6 | Infrastructure data presented as uniformly audited | `confidence_band` field: NARROW (audit-sourced) vs WIDE (spatial fallback) |
+| Claim | Source |
+|---|---|
+| 243 BBMP wards | BBMP GeoJSON KGISWardName field |
+| 2,500+ micro-hotspots | Terrain analysis — threshold-driven, count in metadata |
+| Ward rainfall: 830–1040 mm | KSNDMC Bengaluru District Rainfall Bulletins 2017–2022 |
+| NDMA formula weights | NDMA Urban Flood Risk Index Methodology 2010 |
+| IS:3048 hydrology | IS:3048 Rational Method (BIS standard) |
+| ₹262 crore avg damage | BBMP / KSNDMC annual reports 2019–2022 |
+| Monsoon onset June 5 | IMD Bengaluru Sub-division normal onset ± 8 days |
 
 ---
 
-*HydraGIS v6.0 · March 2026 · NDMA Urban Flood Risk Index Methodology 2010*  
+## Project Structure
+
+```
+flood_fixed/
+├── main.py                        # FastAPI app + 8 endpoints + WebSocket
+├── config.py                      # Pydantic settings + zone rainfall constants
+├── dashboard.py                   # Streamlit entry point
+├── generate_report_visuals.py     # Publication-quality PNG generation
+├── requirements.txt
+├── pipeline/
+│   ├── ingest.py                  # BBMP SWD data + ward infrastructure
+│   ├── ward_pipeline.py           # NDMA composite scoring
+│   ├── micro_hotspots.py          # D8 flow accumulation + hotspot detection
+│   ├── elevation_features.py      # SRTM DEM per-ward elevation extraction
+│   └── rainfall_forecast.py      # 5-zone OWM + IMD fallback
+├── models/
+│   ├── train.py                   # XGBoost + RF ensemble training
+│   ├── predict.py                 # Scoring + deployment plan
+│   ├── backtest.py                # 80/20 validation + 95% Wilson CI
+│   ├── readiness_score.py         # Temporal monsoon proximity ramp
+│   └── flood_simulator.py        # IS:3048 Rational Method
+└── api/
+    └── schemas.py                 # Pydantic request/response models
+```
+
+---
+
+## Built By
+
+**techBlazers** — IIIT Bangalore · India Innovates 2026 (Municipal Corporation of Delhi)
+
+Sai Venkat · Siddhartha Reddy · Sai Harsha · Mithun Kumar · Sohan Reddy
+
+---
+
+*HydraGIS v6.0 · March 2026 · NDMA Urban Flood Risk Index Methodology 2010*
 *Built for BBMP Pre-Monsoon 2026 Readiness*
